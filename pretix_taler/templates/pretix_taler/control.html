@@ -1,0 +1,24 @@
+{% load i18n %}
+
+{% if payment_info %}
+    <dl class="dl-horizontal">
+        {% if "tran_ref" in payment_info %}
+            <dt>{% trans "Transaction reference" %}</dt>
+            <dd>{{ payment_info.tran_ref }}</dd>
+        {% endif %}
+        {% if "trace" in payment_info %}
+            <dt>{% trans "Trace" %}</dt>
+            <dd>{{ payment_info.trace }}</dd>
+        {% endif %}
+        {% if "payment_result" in payment_info %}
+            <dt>{% trans "Result" %}</dt>
+            <dd>{{ payment_info.payment_result.response_code }} {{ payment_info.payment_result.response_message }}</dd>
+        {% endif %}
+        {% if "payment_info" in payment_info %}
+            <dt>{% trans "Card type" %}</dt>
+            <dd>{{ payment_info.payment_info.card_scheme }}</dd>
+            <dt>{% trans "Card number" %}</dt>
+            <dd>{{ payment_info.payment_info.payment_description }} ({{ payment_info.payment_info.expiryMonth }}/{{ payment_info.payment_info.expiryYear }})</dd>
+        {% endif %}
+    </dl>
+{% endif %}

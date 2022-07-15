@@ -1,0 +1,65 @@
+{% extends "pretixpresale/event/base.html" %}
+{% load i18n %}
+{% load eventurl %}
+{% load static %}
+{% block title %}{% trans "Pay order" %}{% endblock %}
+{% block custom_header %}
+    {{ block.super }}
+    <script src="{% static "pretix_taler/check.js" %}"></script>
+{% endblock %}
+{% block content %}
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <h3 class="panel-title">
+                {% blocktrans trimmed with code=order.code %}
+                    Pay order: {{ code }}
+                {% endblocktrans %}
+            </h3>
+        </div>
+        <div class="list-group">
+            <div class="panel-body list-group-item">
+                <noscript>
+                    <div class="alert alert-warning">
+                        {% trans "Please turn on JavaScript." %}
+                    </div>
+                </noscript>
+                <h4 class="text-center">{% trans "Pay with Taler" %}</h4>
+                <p class="text-center">{% trans "Scan this QR code with your mobile wallet:" %}</p>
+                <p class="text-center">
+                    <script type="text/plain" data-size="150" data-replace-with-qr>{{ taler_url }}</script>
+                </p>
+                <p class="text-center">– {% trans "or" %} –</p>
+                <p class="text-center">
+                    <a href="{{ taler_url }}" class="btn btn-primary btn-lg">
+                        {% trans "Open Taler wallet" %}
+                    </a>
+                </p>
+            </div>
+            <div class="list-group-item">
+                <p class="text-center help-block">
+                    <span class="fa fa-cog fa-spin fa-2x"></span>
+                </p>
+                <p class="text-center help-block">
+                    {% trans "After completing the payment, wait for a few seconds or refresh this page." %}
+                </p>
+            </div>
+            <div class="list-group-item">
+                <p class="text-center help-block">
+                    {% trans "Don't have a Taler wallet yet?" %}<br>
+                    <a href="https://wallet.taler.net/" target="_blank" class="btn btn-default btn-default">
+                        {% trans "Install it!" %}
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="row checkout-button-row">
+        <div class="col-md-4">
+            <a class="btn btn-block btn-default btn-lg"
+               href="{% eventurl request.event "presale:event.order" secret=order.secret order=order.code %}">
+                {% trans "Cancel" %}
+            </a>
+        </div>
+        <div class="clearfix"></div>
+    </div>
+{% endblock %}

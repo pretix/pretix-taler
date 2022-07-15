@@ -2,23 +2,21 @@
 
 {% if payment_info %}
     <dl class="dl-horizontal">
-        {% if "tran_ref" in payment_info %}
-            <dt>{% trans "Transaction reference" %}</dt>
-            <dd>{{ payment_info.tran_ref }}</dd>
+        {% if "amount" in payment_info %}
+            <dt>{% trans "Amount" %}</dt>
+            <dd>{{ payment_info.amount }}</dd>
         {% endif %}
-        {% if "trace" in payment_info %}
-            <dt>{% trans "Trace" %}</dt>
-            <dd>{{ payment_info.trace }}</dd>
+        {% if "order_id" in payment_info %}
+            <dt>{% trans "Order ID" %}</dt>
+            <dd>{{ payment_info.order_id }}</dd>
         {% endif %}
-        {% if "payment_result" in payment_info %}
-            <dt>{% trans "Result" %}</dt>
-            <dd>{{ payment_info.payment_result.response_code }} {{ payment_info.payment_result.response_message }}</dd>
+        {% if "taler_pay_uri" in payment_info %}
+            <dt>{% trans "Taler pay URI" %}</dt>
+            <dd>{{ payment_info.taler_pay_uri }}</dd>
         {% endif %}
-        {% if "payment_info" in payment_info %}
-            <dt>{% trans "Card type" %}</dt>
-            <dd>{{ payment_info.payment_info.card_scheme }}</dd>
-            <dt>{% trans "Card number" %}</dt>
-            <dd>{{ payment_info.payment_info.payment_description }} ({{ payment_info.payment_info.expiryMonth }}/{{ payment_info.payment_info.expiryYear }})</dd>
+        {% if "order_status" in payment_info %}
+            <dt>{% trans "Order status" %}</dt>
+            <dd>{{ payment_info.order_status }}</dd>
         {% endif %}
     </dl>
 {% endif %}

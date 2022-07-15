@@ -1,21 +1,19 @@
 import hashlib
 import logging
+import requests
 import time
 from collections import OrderedDict
 from decimal import Decimal
-from urllib.parse import urljoin
-
-import requests
 from django import forms
 from django.http import HttpRequest
 from django.template.loader import get_template
 from django.utils.translation import gettext_lazy as _
-
 from pretix.base.forms import SecretKeySettingsField
 from pretix.base.models import Event, OrderPayment, OrderRefund
 from pretix.base.payment import BasePaymentProvider, PaymentException
 from pretix.base.settings import SettingsSandbox
 from pretix.multidomain.urlreverse import build_absolute_uri, eventreverse
+from urllib.parse import urljoin
 
 logger = logging.getLogger(__name__)
 
@@ -126,20 +124,28 @@ class Taler(BasePaymentProvider):
         }
         return template.render(ctx)
 
+    def payment_pending_render(
+        self, request: HttpRequest, payment: OrderPayment
+    ) -> str:
+        template = get_template("pretix_taler/pending.html")
+        ctx = {
+            "request": request,
+            "event": self.event,
+            "settings": self.settings,
+            "payment": payment,
+            "taler_url": payment.info_data["taler_pay_uri"],
+        }
+        return template.render(ctx)
+
     def execute_payment(self, request: HttpRequest, payment: OrderPayment) -> str:
         currency = (
             "KUDOS"
-            if self.settings.testmode_kudos and self.event.testmode
+            if self.settings.testmode_kudos and payment.order.testmode
             else self.event.currency
         )
-        refund_delay_nanoseconds = (
-                self.settings.get("refund_delay", default=60 * 48, as_type=int)
-                * 60
-                * 1_000_000
-        )
         refund_deadline_unixtime = (
-                time.time()
-                + self.settings.get("refund_delay", default=60 * 48, as_type=int) * 60
+            time.time()
+            + self.settings.get("refund_delay", default=60 * 48, as_type=int) * 60
         )
         pay_deadline_unixtime = max(
             # At least 2 minutes from now, but usually 60min less than the payment deadline of the order
@@ -221,7 +227,7 @@ class Taler(BasePaymentProvider):
             order_resp = r.json()
 
             payment.info_data = {
-                **payload['order'],
+                **payload["order"],
                 **payment.info_data,
                 **order_resp,
             }
@@ -262,6 +268,9 @@ class Taler(BasePaymentProvider):
             )
 
     def _query_and_process(self, payment):
+        if "order_id" not in payment.info_data:
+            payment.fail(log_data={"reason": "No order_id"})
+            raise PaymentException("Invalid state")
         try:
             r = requests.get(
                 urljoin(
@@ -273,14 +282,11 @@ class Taler(BasePaymentProvider):
                 },
             )
             r.raise_for_status()
-
             resp = r.json()
-            payment.info_data = {**payment.info_data, **resp}
 
-            if resp['order_status'] == "paid" and not resp.get('refunded'):
+            if resp["order_status"] == "paid" and not resp.get("refunded"):
+                payment.info_data = {**payment.info_data, **resp}
                 payment.confirm()
-            else:
-                payment.save(update_fields=["info"])
         except requests.RequestException as e:
             logger.exception("Failed to contact Taler merchant backend")
             payment.order.log_action(
@@ -298,10 +304,50 @@ class Taler(BasePaymentProvider):
             )
 
     def payment_refund_supported(self, payment: OrderPayment) -> bool:
-        return True
+        return (
+            "refund_deadline" in payment.info_data
+            and payment.info_data["refund_deadline"]["t_s"] > time.time() + 180
+        )
 
     def payment_partial_refund_supported(self, payment: OrderPayment) -> bool:
-        return True
+        return self.payment_refund_supported(payment)
 
     def execute_refund(self, refund: OrderRefund):
-        pass
+        currency = (
+            "KUDOS"
+            if self.settings.testmode_kudos and refund.order.testmode
+            else self.event.currency
+        )
+        try:
+            r = requests.post(
+                urljoin(
+                    self.settings.merchant_api_url,
+                    f"/instances/{self.settings.merchant_api_instance}/private/orders/{refund.payment.info_data['order_id']}/refund",
+                ),
+                json={
+                    "refund": f"{currency}:{refund.amount}",
+                    "reason": refund.comment or str(_("Refund")),
+                },
+                headers={
+                    "Authorization": f"Bearer secret-token:{self.settings.merchant_api_key}"
+                },
+            )
+
+            if r.status_code not in (200, 201):
+                raise PaymentException(
+                    _(
+                        "We received a negative response from the payment backend. Response: {error}"
+                    ).format(error=r.text)
+                )
+
+            resp = r.json()
+
+            refund.info_data = resp
+            refund.done()
+        except requests.RequestException as e:
+            logger.exception("Failed to contact Taler merchant backend")
+            raise PaymentException(
+                _(
+                    "We were unable to contact the payment system. Please try again later."
+                )
+            )

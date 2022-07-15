@@ -1,15 +1,11 @@
 import hashlib
 from django.contrib import messages
-from django.db import transaction
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils.decorators import method_decorator
-from django.utils.translation import gettext_lazy as _
-from django.views import View
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
-
 from pretix.base.models import Order, OrderPayment
 from pretix.base.payment import PaymentException
 from pretix.multidomain.urlreverse import eventreverse
@@ -21,15 +17,15 @@ class TalerOrderView:
         try:
             self.order = request.event.orders.get(code=kwargs["order"])
             if (
-                    hashlib.sha1(self.order.secret.lower().encode()).hexdigest()
-                    != kwargs["hash"].lower()
+                hashlib.sha1(self.order.secret.lower().encode()).hexdigest()
+                != kwargs["hash"].lower()
             ):
                 raise Http404("")
         except Order.DoesNotExist:
             # Do a hash comparison as well to harden timing attacks
             if (
-                    "abcdefghijklmnopq".lower()
-                    == hashlib.sha1("abcdefghijklmnopq".encode()).hexdigest()
+                "abcdefghijklmnopq".lower()
+                == hashlib.sha1("abcdefghijklmnopq".encode()).hexdigest()
             ):
                 raise Http404("")
             else:
@@ -50,7 +46,7 @@ class TalerOrderView:
 @method_decorator(xframe_options_exempt, "dispatch")
 @method_decorator(csrf_exempt, "dispatch")
 class ReturnView(TalerOrderView, EventViewMixin, TemplateView):
-    template_name = 'pretix_taler/pay.html'
+    template_name = "pretix_taler/pay.html"
 
     def get(self, request, *args, **kwargs):
         self.payment = get_object_or_404(
@@ -61,33 +57,25 @@ class ReturnView(TalerOrderView, EventViewMixin, TemplateView):
         pp = self.payment.payment_provider
 
         if self.payment.state != OrderPayment.PAYMENT_STATE_PENDING:
-            if 'ajax' in request.GET:
-                return JsonResponse({
-                    'refresh': True
-                })
+            if "ajax" in request.GET:
+                return JsonResponse({"refresh": True})
             return self._redirect_to_order()
         else:
             try:
                 pp._query_and_process(self.payment)
             except PaymentException as e:
                 messages.error(self.request, str(e))
-                if 'ajax' in request.GET:
-                    return JsonResponse({
-                        'refresh': True
-                    })
+                if "ajax" in request.GET:
+                    return JsonResponse({"refresh": True})
                 self._redirect_to_order()
-        if 'ajax' in request.GET:
-            return JsonResponse({
-                'refresh': False
-            })
+        if "ajax" in request.GET:
+            return JsonResponse({"refresh": False})
         return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
-        orderid = self.payment.info_data['order_id']
-        token = self.payment.info_data['token']
         return {
             **super().get_context_data(**kwargs),
-            'payment': self.payment,
-            'order': self.payment.order,
-            'taler_url': self.payment.info_data['taler_pay_uri'],
+            "payment": self.payment,
+            "order": self.payment.order,
+            "taler_url": self.payment.info_data["taler_pay_uri"],
         }

@@ -344,7 +344,7 @@ class Taler(BasePaymentProvider):
 
             refund.info_data = resp
             refund.done()
-        except requests.RequestException as e:
+        except requests.RequestException:
             logger.exception("Failed to contact Taler merchant backend")
             raise PaymentException(
                 _(

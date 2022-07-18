@@ -317,18 +317,18 @@ class Taler(BasePaymentProvider):
             if resp.get("refund_details"):
                 pending_refunds = list(payment.refunds.filter(state=OrderRefund.REFUND_STATE_TRANSIT))
                 external_refunds = list(payment.refunds.filter(source=OrderRefund.REFUND_SOURCE_EXTERNAL))
-                for rr in resp["refund_details"]:
+                for api_refund in resp["refund_details"]:
                     for r in pending_refunds:
                         # Check for refunds that we started and that are now done
-                        if rr["reason"].startswith(f"{r.full_id} ") and not r["pending"]:
+                        if api_refund["reason"].startswith(f"{r.full_id} ") and not api_refund["pending"]:
                             r.done()
                             break
                     else:
                         # Check for refunds that we did not started and that we should know about
-                        if not rr["pending"] and not any(r.info_data["timestamp"] == rr["timestamp"] for r in external_refunds):
+                        if not api_refund["pending"] and not any(r.info_data["timestamp"] == api_refund["timestamp"] for r in external_refunds):
                             payment.create_external_refund(
-                                amount=Decimal(rr["amount"].split(":")[1]),
-                                info=json.dumps(rr)
+                                amount=Decimal(api_refund["amount"].split(":")[1]),
+                                info=json.dumps(api_refund)
                             )
 
         except requests.RequestException as e:

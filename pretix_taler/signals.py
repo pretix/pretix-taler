@@ -7,6 +7,7 @@ from django_scopes import scopes_disabled
 from pretix.base.models import OrderPayment
 from pretix.base.payment import PaymentException
 from pretix.base.signals import periodic_task, register_payment_providers
+
 from pretix_taler.models import TalerOrder
 
 logger = logging.getLogger(__name__)
@@ -22,13 +23,18 @@ def register_payment_provider(sender, **kwargs):
 @receiver(periodic_task, dispatch_uid="payment_taler_periodic_check")
 @scopes_disabled()
 def register_periodic_task(sender, **kwargs):
-    for t in TalerOrder.objects.filter(poll_until__gte=now()).select_related('payment', 'payment__order', 'payment__order__event'):
+    for t in TalerOrder.objects.filter(poll_until__gte=now()).select_related(
+        "payment", "payment__order", "payment__order__event"
+    ):
         try:
             t.payment.payment_provider._query_and_process(t.payment)
         except PaymentException:
             continue
         else:
-            if t.payment.state in (OrderPayment.PAYMENT_STATE_CREATED, OrderPayment.PAYMENT_STATE_PENDING):
+            if t.payment.state in (
+                OrderPayment.PAYMENT_STATE_CREATED,
+                OrderPayment.PAYMENT_STATE_PENDING,
+            ):
                 pay_deadline = t.payment.info_data.get("pay_deadline")
                 expired = (
                     not pay_deadline and now() - t.payment.created > timedelta(hours=1)

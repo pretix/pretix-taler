@@ -1,11 +1,10 @@
 import hashlib
 import json
 import logging
-from datetime import timedelta
-
 import requests
 import time
 from collections import OrderedDict
+from datetime import timedelta
 from decimal import Decimal
 from django import forms
 from django.http import HttpRequest
@@ -172,9 +171,10 @@ class Taler(BasePaymentProvider):
             # deadline of the order
             time.time() + 120,
             min(
-                time.time() + self.settings.get("max_pay_deadline", default=60, as_type=int) * 60,
+                time.time()
+                + self.settings.get("max_pay_deadline", default=60, as_type=int) * 60,
                 payment.order.expires.timestamp(),
-            )
+            ),
         )
         payload = {
             "order": {
@@ -199,7 +199,9 @@ class Taler(BasePaymentProvider):
                 ),
                 "refund_deadline": {"t_s": int(refund_deadline_unixtime)},
                 "pay_deadline": {"t_s": int(pay_deadline_unixtime)},
-                "auto_refund": {"d_us": int(refund_deadline_unixtime - time.time()) * 1_000_000},
+                "auto_refund": {
+                    "d_us": int(refund_deadline_unixtime - time.time()) * 1_000_000
+                },
             },
             "create_token": True,
         }
@@ -258,7 +260,13 @@ class Taler(BasePaymentProvider):
             }
             payment.state = OrderPayment.PAYMENT_STATE_PENDING
             payment.save(update_fields=["info", "state"])
-            TalerOrder.objects.create(payment=payment, poll_until=now() + timedelta(seconds=max(pay_deadline_unixtime, refund_deadline_unixtime) + 3600))
+            TalerOrder.objects.create(
+                payment=payment,
+                poll_until=now()
+                + timedelta(
+                    seconds=max(pay_deadline_unixtime, refund_deadline_unixtime) + 3600
+                ),
+            )
             return eventreverse(
                 self.event,
                 "plugins:pretix_taler:return",
@@ -310,25 +318,43 @@ class Taler(BasePaymentProvider):
             r.raise_for_status()
             resp = r.json()
 
-            if resp["order_status"] == "paid" and not resp.get("refunded") and payment.state not in (OrderPayment.PAYMENT_STATE_REFUNDED, OrderPayment.PAYMENT_STATE_CONFIRMED):
+            if (
+                resp["order_status"] == "paid"
+                and not resp.get("refunded")
+                and payment.state
+                not in (
+                    OrderPayment.PAYMENT_STATE_REFUNDED,
+                    OrderPayment.PAYMENT_STATE_CONFIRMED,
+                )
+            ):
                 payment.info_data = {**payment.info_data, **resp}
                 payment.confirm()
 
             if resp.get("refund_details"):
-                pending_refunds = list(payment.refunds.filter(state=OrderRefund.REFUND_STATE_TRANSIT))
-                external_refunds = list(payment.refunds.filter(source=OrderRefund.REFUND_SOURCE_EXTERNAL))
+                pending_refunds = list(
+                    payment.refunds.filter(state=OrderRefund.REFUND_STATE_TRANSIT)
+                )
+                external_refunds = list(
+                    payment.refunds.filter(source=OrderRefund.REFUND_SOURCE_EXTERNAL)
+                )
                 for api_refund in resp["refund_details"]:
                     for r in pending_refunds:
                         # Check for refunds that we started and that are now done
-                        if api_refund["reason"].startswith(f"{r.full_id} ") and not api_refund["pending"]:
+                        if (
+                            api_refund["reason"].startswith(f"{r.full_id} ")
+                            and not api_refund["pending"]
+                        ):
                             r.done()
                             break
                     else:
                         # Check for refunds that we did not started and that we should know about
-                        if not api_refund["pending"] and not any(r.info_data["timestamp"] == api_refund["timestamp"] for r in external_refunds):
+                        if not api_refund["pending"] and not any(
+                            r.info_data["timestamp"] == api_refund["timestamp"]
+                            for r in external_refunds
+                        ):
                             payment.create_external_refund(
                                 amount=Decimal(api_refund["amount"].split(":")[1]),
-                                info=json.dumps(api_refund)
+                                info=json.dumps(api_refund),
                             )
 
         except requests.RequestException as e:
@@ -388,7 +414,7 @@ class Taler(BasePaymentProvider):
 
             refund.info_data = resp
             refund.state = OrderRefund.REFUND_STATE_TRANSIT
-            refund.save(update_fields=['info', 'state'])
+            refund.save(update_fields=["info", "state"])
         except requests.RequestException:
             logger.exception("Failed to contact Taler merchant backend")
             raise PaymentException(

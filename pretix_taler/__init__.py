@@ -15,9 +15,12 @@ class PluginApp(PluginConfig):
     class PretixPluginMeta:
         name = gettext_lazy("Taler")
         author = "pretix team"
-        description = gettext_lazy("Accept payments through GNU Taler, a payment system that makes privacy-friendly online transactions fast and easy.")
+        description = gettext_lazy(
+            "Accept payments through GNU Taler, a payment system that makes privacy-friendly online transactions fast and easy."
+        )
         visible = True
         version = __version__
+        picture = "pretix_taler/logo.svg"
         category = "PAYMENT"
         compatibility = "pretix>=4.10.0"
 

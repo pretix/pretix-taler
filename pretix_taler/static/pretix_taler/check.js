@@ -1,5 +1,5 @@
 $(function () {
-    var check = function () {
+    function check () {
         $.getJSON(
             location.href + '?ajax=1',
         ).done(function (json) {

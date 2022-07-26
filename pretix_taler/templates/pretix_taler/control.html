@@ -1,0 +1,22 @@
+{% load i18n %}
+
+{% if payment_info %}
+    <dl class="dl-horizontal">
+        {% if "amount" in payment_info %}
+            <dt>{% trans "Amount" %}</dt>
+            <dd>{{ payment_info.amount }}</dd>
+        {% endif %}
+        {% if "order_id" in payment_info %}
+            <dt>{% trans "Order ID" %}</dt>
+            <dd>{{ payment_info.order_id }}</dd>
+        {% endif %}
+        {% if "taler_pay_uri" in payment_info %}
+            <dt>{% trans "Taler pay URI" %}</dt>
+            <dd>{{ payment_info.taler_pay_uri }}</dd>
+        {% endif %}
+        {% if "order_status" in payment_info %}
+            <dt>{% trans "Order status" %}</dt>
+            <dd>{{ payment_info.order_status }}</dd>
+        {% endif %}
+    </dl>
+{% endif %}

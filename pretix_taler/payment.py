@@ -90,9 +90,6 @@ class Taler(BasePaymentProvider):
         d.move_to_end("_enabled", last=False)
         return d
 
-    def __init__(self, event: Event):
-        super().__init__(event)
-        self.settings = SettingsSandbox("payment", "paytabs", event)
 
     def checkout_prepare(self, request: HttpRequest, cart):
         return self.payment_prepare(request, None)

@@ -7,6 +7,7 @@ from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
 from django import forms
+from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.http import HttpRequest
 from django.template.loader import get_template
@@ -90,6 +91,52 @@ class Taler(BasePaymentProvider):
         d.move_to_end("_enabled", last=False)
         return d
 
+    def settings_form_clean(self, cleaned_data):
+        cleaned_data = super().settings_form_clean(cleaned_data)
+        if not cleaned_data.get("payment_taler_merchant_api_url"):
+            return cleaned_data
+
+        try:
+            r = requests.get(
+                urljoin(
+                    cleaned_data.get("payment_taler_merchant_api_url"),
+                    "config",
+                ),
+            )
+            r.raise_for_status()
+            resp = r.json()
+            if resp["name"] != "taler-merchant":
+                raise ValidationError(
+                    _(
+                        "We were unable to contact the Taler merchant backend for validation. "
+                        "Received error: {error}"
+                    ).format(error="API does not seem to be a Taler merchant backend")
+                )
+            if resp["currency"] != self.event.currency and not (resp["currency"] == "KUDOS" and cleaned_data.get("payment_taler_testmode_kudos") and self.event.testmode):
+                raise ValidationError(
+                    _(
+                        "This Taler merchant backend only supports payments in {taler_currency} but your event uses {event_currency}."
+                    ).format(taler_currency=resp["currency"], event_currency=self.event.currency)
+                )
+
+            protocol_version = 3
+            version_current, version_revision, version_age = [int(v) for v in resp["version"].split(":")]
+            if version_current < protocol_version or version_revision - version_age > protocol_version:
+                raise ValidationError(
+                    _(
+                        "This Taler merchant backend only supports protocol versions {lower} to {upper}, but we require version {expected}."
+                    ).format(lower=version_current - version_age, upper=version_current, expected=protocol_version)
+                )
+
+        except requests.RequestException as e:
+            logger.exception("Failed to contact Taler merchant backend")
+            raise ValidationError(
+                _(
+                    "We were unable to contact the Taler merchant backend for validation. "
+                    "Received error: {error}"
+                ).format(error=str(e))
+            )
+        return cleaned_data
 
     def checkout_prepare(self, request: HttpRequest, cart):
         return self.payment_prepare(request, None)

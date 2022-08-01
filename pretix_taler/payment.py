@@ -7,6 +7,7 @@ from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
 from django import forms
+from django.core.validators import RegexValidator
 from django.http import HttpRequest
 from django.template.loader import get_template
 from django.utils.timezone import now
@@ -35,14 +36,14 @@ class Taler(BasePaymentProvider):
             (
                 "merchant_api_url",
                 forms.URLField(
-                    label=_("Merchant backend URL"),
-                ),
-            ),
-            (
-                "merchant_api_instance",
-                forms.CharField(
-                    label=_("Merchant instance"),
-                    initial="default",
+                    label=_("Merchant base URL"),
+                    validators=[
+                        RegexValidator(
+                            regex=r"/$",
+                            message=_("URL needs to end with a /."),
+                            code="missing_slash",
+                        )
+                    ],
                 ),
             ),
             (
@@ -209,7 +210,7 @@ class Taler(BasePaymentProvider):
             r = requests.post(
                 urljoin(
                     self.settings.merchant_api_url,
-                    f"/instances/{self.settings.merchant_api_instance}/private/orders",
+                    f"private/orders",
                 ),
                 json=payload,
                 headers={
@@ -244,7 +245,7 @@ class Taler(BasePaymentProvider):
             r = requests.get(
                 urljoin(
                     self.settings.merchant_api_url,
-                    f"/instances/{self.settings.merchant_api_instance}/private/orders/{payment.info_data['order_id']}",
+                    f"private/orders/{payment.info_data['order_id']}",
                 ),
                 headers={
                     "Authorization": f"Bearer secret-token:{self.settings.merchant_api_key}"
@@ -309,7 +310,7 @@ class Taler(BasePaymentProvider):
             r = requests.get(
                 urljoin(
                     self.settings.merchant_api_url,
-                    f"/instances/{self.settings.merchant_api_instance}/private/orders/{payment.info_data['order_id']}",
+                    f"private/orders/{payment.info_data['order_id']}",
                 ),
                 headers={
                     "Authorization": f"Bearer secret-token:{self.settings.merchant_api_key}"
@@ -392,7 +393,7 @@ class Taler(BasePaymentProvider):
             r = requests.post(
                 urljoin(
                     self.settings.merchant_api_url,
-                    f"/instances/{self.settings.merchant_api_instance}/private/orders/{refund.payment.info_data['order_id']}/refund",
+                    f"private/orders/{refund.payment.info_data['order_id']}/refund",
                 ),
                 json={
                     "refund": f"{currency}:{refund.amount}",

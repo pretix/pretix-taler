@@ -197,7 +197,7 @@ class Taler(BasePaymentProvider):
             "event": self.event,
             "settings": self.settings,
             "payment": payment,
-            "taler_url": payment.info_data["taler_pay_uri"],
+            "taler_url": payment.info_data.get("taler_pay_uri"),
         }
         return template.render(ctx)
 

@@ -1,26 +1,32 @@
 {% load i18n %}
 
-<noscript>
+{% if not taler_url %}
     <div class="alert alert-warning">
-        {% trans "Please turn on JavaScript." %}
+        {% trans "We were unable to contact the payment system. Please try again later." %}
     </div>
-</noscript>
-<h4 class="text-center">{% trans "Pay with Taler" %}</h4>
-<p class="text-center">{% trans "Scan this QR code with your mobile wallet:" %}</p>
-<p class="text-center">
-    <script type="text/plain" data-size="150" data-replace-with-qr>{{ taler_url }}</script>
-</p>
-<p class="text-center">– {% trans "or" %} –</p>
-<p class="text-center">
-    <a href="{{ taler_url }}" class="btn btn-primary btn-lg">
-        {% trans "Open Taler wallet" %}
-    </a>
-</p>
-<p class="text-center help-block">
-    {% trans "After completing the payment, please allow for up to ten minutes for our server to register the payment." %}
-</p>
-{% if payment.order.email %}
-    <p class="text-center help-block">
-        {% trans "You do not need to keep this page open, we will send you an email once we received your payment." %}
+{% else %}
+    <noscript>
+        <div class="alert alert-warning">
+            {% trans "Please turn on JavaScript." %}
+        </div>
+    </noscript>
+    <h4 class="text-center">{% trans "Pay with Taler" %}</h4>
+    <p class="text-center">{% trans "Scan this QR code with your mobile wallet:" %}</p>
+    <p class="text-center">
+        <script type="text/plain" data-size="150" data-replace-with-qr>{{ taler_url }}</script>
     </p>
+    <p class="text-center">– {% trans "or" %} –</p>
+    <p class="text-center">
+        <a href="{{ taler_url }}" class="btn btn-primary btn-lg">
+            {% trans "Open Taler wallet" %}
+        </a>
+    </p>
+    <p class="text-center help-block">
+        {% trans "After completing the payment, please allow for up to ten minutes for our server to register the payment." %}
+    </p>
+    {% if payment.order.email %}
+        <p class="text-center help-block">
+            {% trans "You do not need to keep this page open, we will send you an email once we received your payment." %}
+        </p>
+    {% endif %}
 {% endif %}

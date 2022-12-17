@@ -1,10 +1,10 @@
-from django.conf.urls import url
+from django.urls import path
 
 from . import views
 
 event_patterns = [
-    url(
-        r"^_taler/pay/(?P<order>[^/]+)/(?P<hash>[^/]+)/(?P<payment>[0-9]+)/$",
+    path(
+        "_taler/pay/<str:order>/<str:hash>/<int:payment>/",
         views.ReturnView.as_view(),
         name="return",
     ),

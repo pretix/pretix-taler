@@ -1,0 +1,10 @@
+# This file is used by the pretix team internally to coordinate releases of this plugin
+[plugin]
+package = "pretix-taler"
+modules = [ "pretix_taler" ]
+marketplace_name = "taler"
+pypi = true
+repository_servers = { origin = "github.com" }
+tag_targets = [ "origin" ]
+branch_targets = [ "origin/master" ]
+
